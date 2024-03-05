@@ -31,4 +31,7 @@
   <parameter name="cargotoml">
     <description>Specify a Cargo.toml to use. Can be specified multiple times. Default will autodetect.</description>
   </parameter>
+  <parameter name="patch">
+    <description>Specify a patch that should be applied while vendoring (vendor, apply patch, re-vendor). Can be specified multiple times.</description>
+  </parameter>
 </service>

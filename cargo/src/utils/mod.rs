@@ -17,12 +17,12 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::audit::{perform_cargo_audit, process_reports};
 use crate::cli::{Compression, Opts};
 use crate::errors::OBSCargoError;
 use crate::errors::OBSCargoErrorKind;
+use crate::patch::apply_patch;
 use crate::vendor::{self, vendor};
-
-use crate::audit::{perform_cargo_audit, process_reports};
 
 use glob::glob;
 #[allow(unused_imports)]
@@ -230,6 +230,20 @@ pub fn process_src(args: &Opts, prjdir: &Path) -> Result<(), OBSCargoError> {
     if hasdeps {
         vendor(prjdir, &cargo_config, &first_manifest, &manifest_files)?;
 
+        if !args.patch.is_empty() {
+            for patch in args.patch.iter() {
+                info!(
+                    " Applying patch {} to {}",
+                    patch.to_string_lossy(),
+                    prjdir.to_string_lossy()
+                );
+                apply_patch(prjdir, patch)?;
+            }
+
+            info!("Re-vendoring after patches are applied.");
+            // After applying patches, we have to re-vendor since dependencies may have changed
+            vendor(prjdir, &cargo_config, &first_manifest, &manifest_files)?;
+        }
         // Finally, compress everything together.
         let compression: &Compression = &args.compression;
         debug!("Compression is of {}", &compression);

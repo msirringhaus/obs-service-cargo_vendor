@@ -284,6 +284,7 @@ pub fn attempt_cargo_update_before_revendor(
         let update = true;
         let mut compression: String = String::new();
         let mut cargotomls: Vec<PathBuf> = Vec::new();
+        let mut patch: Vec<PathBuf> = Vec::new();
         let mut accept_risks: Vec<String> = Vec::new();
         let mut src: String = String::new();
         let mut tag: Option<String> = None;
@@ -303,6 +304,11 @@ pub fn attempt_cargo_update_before_revendor(
                 if name == "cargotomls" {
                     if let Some(text) = &param.text {
                         cargotomls.push(PathBuf::from(&text));
+                    }
+                };
+                if name == "patch" {
+                    if let Some(text) = &param.text {
+                        patch.push(PathBuf::from(&text));
                     }
                 };
                 if name == "tag" {
@@ -346,6 +352,7 @@ pub fn attempt_cargo_update_before_revendor(
             outdir,
             color: colorize,
             i_accept_the_risk: accept_risks,
+            patch,
         };
         srcpath
             .run_vendor(&new_opts)

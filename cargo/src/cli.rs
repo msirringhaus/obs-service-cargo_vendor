@@ -69,6 +69,11 @@ pub struct Opts {
         help = "A list of rustsec-id's to ignore. By setting this value, you acknowledge that this issue does not affect your package and you should be exempt from resolving it."
     )]
     pub i_accept_the_risk: Vec<String>,
+    #[arg(
+        long,
+        help = "Patches that should be applied when vendoring (doing: vendor, apply patch, re-vendor)"
+    )]
+    pub patch: Vec<PathBuf>,
 }
 
 impl AsRef<Opts> for Opts {
@@ -231,9 +236,9 @@ impl Vendor for Src {
         // Return workdir here?
         let newworkdir: PathBuf = match self.is_supported() {
             Ok(format) => {
-                match format {
-                    SupportedFormat::Compressed(compression_type, srcpath) => {
-                        match decompress(&compression_type, &workdir, &srcpath) {
+                let dir = match format {
+                    SupportedFormat::Compressed(compression_type, ref srcpath) => {
+                        match decompress(&compression_type, &workdir, srcpath) {
                             Ok(_) => {
                                 let dirs: Vec<Result<std::fs::DirEntry, std::io::Error>> =
                                     std::fs::read_dir(&workdir)
@@ -286,8 +291,8 @@ impl Vendor for Src {
                             }
                         }
                     }
-                    SupportedFormat::Dir(srcpath) => match utils::copy_dir_all(
-                        &srcpath,
+                    SupportedFormat::Dir(ref srcpath) => match utils::copy_dir_all(
+                        srcpath,
                         &workdir.join(srcpath.file_name().unwrap_or(srcpath.as_os_str())),
                     ) {
                         Ok(_) => workdir.join(srcpath.file_name().unwrap_or(srcpath.as_os_str())),
@@ -298,7 +303,28 @@ impl Vendor for Src {
                             ))
                         }
                     },
+                };
+
+                // Copying patches to the new temporary working-dir to be able to apply them later
+                for patch in &opts.patch {
+                    match format {
+                        SupportedFormat::Compressed(_, ref srcpath)
+                        | SupportedFormat::Dir(ref srcpath) => {
+                            if let Some(dirname) = srcpath.parent() {
+                                std::fs::copy(dirname.join(patch), dir.join(patch)).map_err(
+                                    |err| {
+                                        error!(?err, "Failed to copy patch");
+                                        OBSCargoError::new(
+                                            OBSCargoErrorKind::PatchError,
+                                            "failed to copy patch".to_string(),
+                                        )
+                                    },
+                                )?;
+                            }
+                        }
+                    }
                 }
+                dir
             }
             Err(err) => {
                 error!(?err);

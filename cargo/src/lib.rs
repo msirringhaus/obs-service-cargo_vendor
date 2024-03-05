@@ -10,5 +10,6 @@ pub mod audit;
 pub mod cli;
 pub mod consts;
 mod errors;
+pub mod patch;
 pub mod utils;
 pub mod vendor;
